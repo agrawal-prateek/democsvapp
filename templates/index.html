@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+            crossorigin="anonymous"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+            integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy"
+            crossorigin="anonymous"></script>
+    <style type="text/css">
+        .generate-button, .fetch-data {
+            border-radius: 10px;
+            outline: none !important;
+            cursor: pointer;
+        }
+
+        body {
+            padding: 20px;
+        }
+
+        #sel1, #sel2 {
+            width: 50%;
+            margin-top: 20px;
+            box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.5);
+            height: 200px;
+        }
+
+        table {
+            margin-top: 50px;
+
+        }
+
+        caption {
+            caption-side: top !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container maincontainer">
+    <div class="row">
+        <div class="col-1"></div>
+        <div class="col-11">
+            <button class="btn-primary generate-button">Generate Random CSV Files</button>
+            <span class="generate-message"></span>
+        </div>
+    </div>
+    <div class="row" style="margin-top: 100px">
+        <form id="myform" class="form-inline" method="post" action="/get_data" style="width: 100%">
+            <div class="col-5" style="text-align: center">
+                <label for="sel1">Select one or multiple files:</label>
+                <select multiple class="form-control file-names" id="sel1" name="filenames"></select>
+            </div>
+            <div class="col-1">
+            </div>
+            <div class="col-5" style="text-align: center">
+                <label for="sel2">Select one or multiple columns:</label>
+                <select multiple class="form-control file-names" id="sel2" name="fieldnames"></select>
+            </div>
+            <div class="col-1"></div>
+            <div class="col-12" style="text-align: center;margin-top: 50px">
+                <button class="btn-primary fetch-data" type="submit">Get Data</button>
+            </div>
+        </form>
+    </div>
+    <div class="table-responsive maintables"></div>
+</div>
+
+<script type="text/javascript">
+    $.getJSON("/getfilenames", function (data) {
+        for (let i = 0; i < data['items'].length; i++) {
+            $('#sel1').append(`<option value="${data['items'][i]}">${data['items'][i]}</option>`);
+        }
+    });
+    for (let i = 0; i < 10; i++)
+        $('#sel2').append(`<option value='field${i + 1}'>field${i + 1}</option>`);
+    $(".generate-button").click(function () {
+        $.ajax({
+            url: "/generate_random_csv",
+            success: function (result) {
+                if (result === 'true') {
+                    $('.generate-message')
+                        .css('color', 'green')
+                        .html('Files generated successfully');
+                    $.getJSON("/getfilenames", function (data) {
+                        $('#sel1').html('');
+                        for (let i = 0; i < data['items'].length; i++) {
+                            $('#sel1').append(`<option value="${data['items'][i]}">${data['items'][i]}</option>`);
+                        }
+                    });
+                }
+                else {
+                    $('.generate-message').css('color', 'red').html('Files couldn\'t be generated');
+                }
+            },
+            error: function (err) {
+                $('.generate-message').css('color', 'red').html('Files couldn\'t be generated');
+            }
+        });
+    });
+</script>
+<script>
+    $("#myform").submit(function (e) {
+        $('.maintables').html('');
+        var postData = $(this).serializeArray();
+        var formURL = $(this).attr("action");
+
+        $.ajax({
+            url: formURL,
+            type: "POST",
+            crossDomain: true,
+            data: postData,
+            success: function (data, textStatus, jqXHR) {
+
+                $.each(data['filedata'], function (filename, table) {
+                    let caption = `<caption>${filename}</caption>`;
+                    let thead = ``;
+                    for (let i = 0; i < table['fields'].length; i++) {
+                        thead += `<th>${table['fields'][i]}</th>`;
+                    }
+                    thead = `<thead><tr>` + thead + `</thead></tr>`;
+                    let tbody = `<tbody>`;
+                    for (let i = 0; i < table['data'].length; i++) {
+                        let tr = ``;
+                        for (let j = 0; j < table['data'][i].length; j++) {
+                            tr += `<td>${table['data'][i][j]}</td>`;
+                        }
+                        tr = `<tr>` + tr + `</tr>`;
+                        tbody += tr;
+                    }
+                    tbody += `</tbody>`;
+                    table = `<table class="table table-striped">` + caption + thead + tbody + `</table>`;
+                    $('.maintables').append(table);
+                });
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                alert('failed');
+            }
+        });
+        e.preventDefault();
+    });
+</script>
+</body>
+</html>
